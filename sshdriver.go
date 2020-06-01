@@ -27,7 +27,7 @@ func (this *sshDriver) Start(ctx context.Context, cmd *command, opts startOpts) 
 		return nil, errors.Wrapf(err, "cannot start session")
 	}
 
-	if err := this.requestTtyIfRequired(session, cmd); err != nil {
+	if err := this.requestTtyIfRequired(session, cmd, opts); err != nil {
 		return nil, errors.Wrapf(err, "cannot start session")
 	}
 
@@ -86,7 +86,7 @@ func (this *sshDriver) RunEcho(ctx context.Context, cmd *command) error {
 		return errors.Wrapf(err, "cannot start session")
 	}
 
-	if err := this.requestTtyIfRequired(session, cmd); err != nil {
+	if err := this.requestTtyIfRequired(session, cmd, startOpts{}); err != nil {
 		return errors.Wrapf(err, "cannot start session")
 	}
 
@@ -135,12 +135,16 @@ func (this *sshDriver) echoPumpConsumer(r io.Reader, wg *sync.WaitGroup, cmd *co
 	}
 }
 
-func (this *sshDriver) requestTtyIfRequired(session *ssh.Session, cmd *command) error {
+func (this *sshDriver) requestTtyIfRequired(session *ssh.Session, cmd *command, opts startOpts) error {
 	// TODO: make this configurable
 	effectiveTtyMode := ttyNever
 
 	if cmd.ttyMode != ttyDontCare {
 		effectiveTtyMode = cmd.ttyMode
+	}
+
+	if opts.ttyMode != ttyDontCare {
+		effectiveTtyMode = opts.ttyMode
 	}
 
 	if effectiveTtyMode == ttyNever {

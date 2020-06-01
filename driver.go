@@ -20,6 +20,7 @@ type driver interface {
 
 type startOpts struct {
 	pipeStdout, pipeStdin, pipeStderr bool
+	ttyMode                           ttyMode
 }
 
 type runningCommand struct {

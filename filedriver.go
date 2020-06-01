@@ -3,7 +3,6 @@ package fabric
 import (
 	"context"
 	"io"
-	"log"
 )
 
 type fileDriver interface {
@@ -26,7 +25,7 @@ func (cfd catFileDriver) open(file string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	runningCmd, err := cfd.driver.Start(context.Background(), cmd, startOpts{pipeStdout: true})
+	runningCmd, err := cfd.driver.Start(context.Background(), cmd, startOpts{pipeStdout: true, ttyMode: ttyNever})
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +41,7 @@ func (cfd catFileDriver) create(file string) (io.WriteCloser, error) {
 	}
 
 	// TODO: capture output in stderr
-	runningCmd, err := cfd.driver.Start(context.Background(), cmd, startOpts{pipeStdin: true})
+	runningCmd, err := cfd.driver.Start(context.Background(), cmd, startOpts{pipeStdin: true, ttyMode: ttyNever})
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +72,8 @@ func (w runningCmdWriterCloser) Write(p []byte) (n int, err error) {
 }
 
 func (w runningCmdWriterCloser) Close() error {
-	log.Println("- closing")
 	if err := w.w.Close(); err != nil {
 		return err
 	}
-	log.Println("- waiting")
 	return w.cmd.Wait()
 }
