@@ -4,6 +4,7 @@ import "context"
 
 type MustContext struct {
 	driver		driver
+	cmdBuilder	commandBuilder
 }
 
 type errMustContextFail struct {
@@ -12,7 +13,12 @@ type errMustContextFail struct {
 
 // RunEcho will run the command while printing stdout and stderr.
 func (this *MustContext) RunEcho(cmd string, args ...string) {
-	err := this.driver.RunEcho(context.Background(), cmd, args...)
+	builtCmd, err := this.cmdBuilder.build(cmd, args)
+	if err != nil {
+		panic(errMustContextFail{err})
+	}
+
+	err = this.driver.RunEcho(context.Background(), builtCmd)
 	if err != nil {
 		panic(errMustContextFail{err})
 	}

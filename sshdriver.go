@@ -3,41 +3,46 @@ package fabric
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"github.com/melbahja/goph"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
 	"io"
-	"log"
-	"strings"
 	"sync"
 )
 
 type sshDriver struct {
 	client *goph.Client
+	tracer	driverTracer
 }
 
 func (this *sshDriver) Close() error {
 	return this.client.Close()
 }
 
-func (this *sshDriver) Run(ctx context.Context, cmd string, args ...string) ([]byte, error) {
+func (this *sshDriver) Run(ctx context.Context, cmd *command) ([]byte, error) {
 	// TODO: escape args
-	fullCmd := fmt.Sprintf("%s %s", cmd, strings.Join(args, " "))
+	fullCmd := cmd.fullCommand()
 
+	this.tracer.startCmd(cmd)
 	output, err := this.client.Run(fullCmd)
+	this.tracer.endCommand(cmd, err, false)
+
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot run "+cmd)
+		return nil, errors.Wrapf(err, "cannot run "+cmd.name)
 	}
 
 	return output, nil
 }
 
-
-func (this *sshDriver) RunEcho(ctx context.Context, cmd string, args ...string) error {
-	fullCmd := fmt.Sprintf("%s %s", cmd, strings.Join(args, " "))
+func (this *sshDriver) RunEcho(ctx context.Context, cmd *command) error {
+	fullCmd := cmd.fullCommand()
 
 	session, err := this.client.NewSession()
 	if err != nil {
+		return errors.Wrapf(err, "cannot start session")
+	}
+
+	if err := this.requestTtyIfRequired(session, cmd); err != nil {
 		return errors.Wrapf(err, "cannot start session")
 	}
 
@@ -47,17 +52,17 @@ func (this *sshDriver) RunEcho(ctx context.Context, cmd string, args ...string) 
 	stderrReader, stderrWriter := io.Pipe()
 	session.Stderr = stderrWriter
 
+	this.tracer.startCmd(cmd)
 	if err := session.Start(fullCmd); err != nil {
-
 		return errors.Wrapf(err, "cannot start command: %v", fullCmd)
 	}
 
-	outChan, errChan, doneChan := make(chan string), make(chan string), make(chan error)
+	doneChan := make(chan error)
 
 	waitGroup := new(sync.WaitGroup)
 	waitGroup.Add(2)
-	go pumpToStreamEvent(outChan, stdoutReader, waitGroup)
-	go pumpToStreamEvent(errChan, stderrReader, waitGroup)
+	go this.echoPumpConsumer(stdoutReader, waitGroup, cmd, false)
+	go this.echoPumpConsumer(stderrReader, waitGroup, cmd, true)
 	go func() {doneChan <- session.Wait()}()
 
 	for {
@@ -67,22 +72,47 @@ func (this *sshDriver) RunEcho(ctx context.Context, cmd string, args ...string) 
 			stdoutWriter.Close()
 			stderrWriter.Close()
 			waitGroup.Wait()
+
+			this.tracer.endCommand(cmd, err, false)
 			return err
 		case <-ctx.Done():
+			this.tracer.endCommand(cmd, ctx.Err(), true)
 			return ctx.Err()
 		}
 	}
 }
 
-func pumpToStreamEvent(dest chan string, r io.Reader, wg *sync.WaitGroup) {
+func (this *sshDriver) echoPumpConsumer(r io.Reader, wg *sync.WaitGroup, cmd *command, isStdErr bool) {
 	defer wg.Done()
 
 	scan := bufio.NewScanner(bufio.NewReader(r))
 	for scan.Scan() {
-		// TODO: instead of logging, allow another component to receive echo commands
-		log.Println("[remote] ", scan.Text())
+		this.tracer.echoOut(cmd, scan.Text(), isStdErr)
 	}
 }
 
+func (this *sshDriver) requestTtyIfRequired(session *ssh.Session, cmd *command) error {
+	// TODO: make this configurable
+	effectiveTtyMode := ttyNever
 
+	if cmd.ttyMode != ttyDontCare {
+		effectiveTtyMode = cmd.ttyMode
+	}
 
+	if effectiveTtyMode == ttyNever {
+		return nil
+	}
+
+	if err := session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
+		ssh.ECHO:          0,     // disable echoing
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}); err != nil {
+		if effectiveTtyMode == ttyRequired {
+			return errors.Wrapf(err, "cannot start tty")
+		}
+		this.tracer.warnf("unable to obtain recommended tty: %v", err)
+	}
+
+	return nil
+}

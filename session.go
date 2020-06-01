@@ -2,38 +2,54 @@ package fabric
 
 import (
 	"github.com/melbahja/goph"
+	"log"
 	"os"
 )
 
 type Session struct {
-	driver	driver
+	*SubContext
 }
 
-func NewSSH(user, addr string, auth goph.Auth) (*Session, error) {
-	sshClient, err := goph.New("root", "lmika.app", goph.Key(os.ExpandEnv("${HOME}/.ssh/id_rsa"), ""))
+func NewSSH(user, addr string, auth SSHAuth) (*Session, error) {
+	gophAuth, err := auth.toGophAuth()
 	if err != nil {
 		return nil, err
 	}
-	return &Session{&sshDriver{sshClient}}, nil
+
+	//sshClient, err := goph.New(user, addr, gophAuth)
+
+	// TODO: make this configurable
+	sshClient, err := goph.NewUnknown(user, addr, gophAuth)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: make THIS configurable
+	logTag := user + "@" + addr
+
+	driver := &sshDriver{
+		client: sshClient,
+		// TODO: make configurable
+		tracer: &noisyLogDriverTracer{
+			logger: log.New(os.Stderr, "", log.Ldate | log.Ltime),
+			prefix: logTag,
+		},
+	}
+	return &Session{
+		&SubContext{
+			driver:     driver,
+			cmdBuilder: plainCommandBuilder{},
+		},
+	}, nil
 }
 
 func (this *Session) Close() error {
 	return this.driver.Close()
 }
 
-// MustDo will run the function in a "must" context (TODO: rename).  The commands in the must
-// context must pass or the function will panic.  Panicing will return an error.
-func (this *Session) MustDo(fn func(*MustContext)) (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			if failure, isFailure := e.(errMustContextFail); isFailure {
-				err = failure.cause
-			} else {
-				panic(e)
-			}
-		}
-	}()
-
-	fn(&MustContext{this.driver})
-	return err
+func (this *Session) Sudo() *SubContext {
+	return &SubContext{
+		driver:     this.driver,
+		cmdBuilder: sudoCommandBuilder{this.cmdBuilder},
+	}
 }
