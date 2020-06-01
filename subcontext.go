@@ -1,6 +1,9 @@
 package fabric
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 type SubContext struct {
 	driver     driver
@@ -44,4 +47,19 @@ func (sc *SubContext) MustDo(fn func(*MustContext)) (err error) {
 
 	fn(&MustContext{subContext: sc})
 	return err
+}
+
+// Open opens a remote file for reading.
+func (sc *SubContext) Open(file string) (io.ReadCloser, error) {
+	panic("TODO")
+}
+
+// Create opens a remote file for writing.
+func (sc *SubContext) Create(file string) (io.WriteCloser, error) {
+	panic("TODO")
+}
+
+// InDir returns a new subcontext for the current directory
+func (sc *SubContext) InDir(newDir string) *SubContext {
+	panic("TODO")
 }
