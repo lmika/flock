@@ -17,6 +17,18 @@ func (sc *SubContext) RunEcho(cmd string, args ...string) error {
 	return sc.driver.RunEcho(context.Background(), builtCommand)
 }
 
+func (this *SubContext) Sudo() *SubContext {
+	return &SubContext{
+		driver:     this.driver,
+		cmdBuilder: sudoCommandBuilder{this.cmdBuilder},
+	}
+}
+
+// Run the next command
+func (sc *SubContext) Must() *MustContext {
+	return &MustContext{subContext: sc}
+}
+
 // MustDo will run the function in a "must" context (TODO: rename).  The commands in the must
 // context must pass or the function will panic.  Panicing will return an error.
 func (sc *SubContext) MustDo(fn func(*MustContext)) (err error) {

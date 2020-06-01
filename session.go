@@ -46,10 +46,3 @@ func NewSSH(user, addr string, auth SSHAuth) (*Session, error) {
 func (this *Session) Close() error {
 	return this.driver.Close()
 }
-
-func (this *Session) Sudo() *SubContext {
-	return &SubContext{
-		driver:     this.driver,
-		cmdBuilder: sudoCommandBuilder{this.cmdBuilder},
-	}
-}
