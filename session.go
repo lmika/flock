@@ -35,10 +35,18 @@ func NewSSH(user, addr string, auth SSHAuth) (*Session, error) {
 			prefix: logTag,
 		},
 	}
+	cmdBuilder := plainCommandBuilder{}
+
 	return &Session{
 		&SubContext{
 			driver:     driver,
-			cmdBuilder: plainCommandBuilder{},
+			cmdBuilder: cmdBuilder,
+
+			// TODO: the default session should use the SSH connection sessions here to save having to use 'cat'
+			fileDriver: catFileDriver{
+				driver: driver,
+				cmdBuilder: cmdBuilder,
+			},
 		},
 	}, nil
 }
@@ -46,3 +54,7 @@ func NewSSH(user, addr string, auth SSHAuth) (*Session, error) {
 func (this *Session) Close() error {
 	return this.driver.Close()
 }
+
+//func (this *Session) Tunnel() *Tunnel {
+//
+//}

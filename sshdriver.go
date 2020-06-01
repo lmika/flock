@@ -19,6 +19,50 @@ func (this *sshDriver) Close() error {
 	return this.client.Close()
 }
 
+func (this *sshDriver) Start(ctx context.Context, cmd *command, opts startOpts) (*runningCommand, error) {
+	fullCmd := cmd.fullCommand()
+
+	session, err := this.client.NewSession()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot start session")
+	}
+
+	if err := this.requestTtyIfRequired(session, cmd); err != nil {
+		return nil, errors.Wrapf(err, "cannot start session")
+	}
+
+	newRunningCommand := &runningCommand{
+		ctx: ctx,
+		command: cmd,
+		tracer: this.tracer,
+		session: session,
+	}
+
+	if opts.pipeStdin {
+		if newRunningCommand.stdin, err = session.StdinPipe(); err != nil {
+			return nil, err
+		}
+	}
+	if opts.pipeStdout {
+		if newRunningCommand.stdout, err = session.StdoutPipe(); err != nil {
+			return nil, err
+		}
+	}
+	if opts.pipeStderr {
+		if newRunningCommand.stderr, err = session.StderrPipe(); err != nil {
+			return nil, err
+		}
+	}
+
+	this.tracer.startCmd(cmd)
+	if err := session.Start(fullCmd); err != nil {
+		return nil, errors.Wrapf(err, "cannot start command: %v", fullCmd)
+	}
+
+	return newRunningCommand, nil
+}
+
+
 func (this *sshDriver) Run(ctx context.Context, cmd *command) ([]byte, error) {
 	// TODO: escape args
 	fullCmd := cmd.fullCommand()

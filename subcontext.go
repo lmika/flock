@@ -3,11 +3,13 @@ package fabric
 import (
 	"context"
 	"io"
+	"io/ioutil"
 )
 
 type SubContext struct {
 	driver     driver
 	cmdBuilder commandBuilder
+	fileDriver fileDriver
 }
 
 // RunEcho runs the commands with no input and all output going to stdout
@@ -21,9 +23,12 @@ func (sc *SubContext) RunEcho(cmd string, args ...string) error {
 }
 
 func (this *SubContext) Sudo() *SubContext {
+	newCmdBuilder := sudoCommandBuilder{this.cmdBuilder}
+
 	return &SubContext{
 		driver:     this.driver,
-		cmdBuilder: sudoCommandBuilder{this.cmdBuilder},
+		cmdBuilder: newCmdBuilder,
+		fileDriver: catFileDriver{this.driver, newCmdBuilder},
 	}
 }
 
@@ -52,6 +57,44 @@ func (sc *SubContext) MustDo(fn func(*MustContext)) (err error) {
 // Open opens a remote file for reading.
 func (sc *SubContext) Open(file string) (io.ReadCloser, error) {
 	panic("TODO")
+}
+
+// ReadFile reads the contents of a remote file.
+func (sc *SubContext) ReadFile(file string) ([]byte, error) {
+	r, err := sc.fileDriver.open(file)
+	if err != nil {
+		return nil, err
+	}
+
+	bts, err := ioutil.ReadAll(r)
+	if err != nil {
+		r.Close()
+		return nil, err
+	}
+
+	if err := r.Close(); err != nil {
+		return nil, err
+	}
+
+	return bts, nil
+}
+
+// WriteFile writes the contents of a remote file.
+func (sc *SubContext) WriteFile(file string, data []byte) error {
+	w, err := sc.fileDriver.create(file)
+	if err != nil {
+		return err
+	}
+
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Create opens a remote file for writing.
