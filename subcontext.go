@@ -30,9 +30,6 @@ func (sc *SubContext) MustDo(fn func(*MustContext)) (err error) {
 		}
 	}()
 
-	fn(&MustContext{
-		driver:     sc.driver,
-		cmdBuilder: sc.cmdBuilder,
-	})
+	fn(&MustContext{subContext: sc})
 	return err
 }
