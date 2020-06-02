@@ -56,7 +56,12 @@ func (sc *SubContext) MustDo(fn func(*MustContext)) (err error) {
 
 // Open opens a remote file for reading.
 func (sc *SubContext) Open(file string) (io.ReadCloser, error) {
-	panic("TODO")
+	return sc.fileDriver.open(file)
+}
+
+// Create opens a remote file for writing.
+func (sc *SubContext) Create(file string) (io.WriteCloser, error) {
+	return sc.fileDriver.create(file)
 }
 
 // ReadFile reads the contents of a remote file.
@@ -95,11 +100,6 @@ func (sc *SubContext) WriteFile(file string, data []byte) error {
 	}
 
 	return nil
-}
-
-// Create opens a remote file for writing.
-func (sc *SubContext) Create(file string) (io.WriteCloser, error) {
-	panic("TODO")
 }
 
 // InDir returns a new subcontext for the current directory
