@@ -71,3 +71,21 @@ func (this *MustContext) WriteFile(file string, data []byte) {
 		this.Panic(err)
 	}
 }
+
+// Upload copies the contents of a local file to the remote machine.  This will panic if there was a problem
+// within the process.
+func (this *MustContext) Upload(localFile string, remoteFile string) {
+	err := this.subContext.Upload(localFile, remoteFile)
+	if err != nil {
+		this.Panic(err)
+	}
+}
+
+// Download copies the contents of a remote file to a local file.  This will panic if there was a problem
+// within the process.
+func (this *MustContext) Download(remoteFile string, localFile string) {
+	err := this.subContext.Download(remoteFile, localFile)
+	if err != nil {
+		this.Panic(err)
+	}
+}

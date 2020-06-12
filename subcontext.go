@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"os"
 )
 
 type SubContext struct {
@@ -22,6 +23,7 @@ func (sc *SubContext) RunEcho(cmd string, args ...string) error {
 	return sc.driver.RunEcho(context.Background(), builtCommand)
 }
 
+// Sudo returns a new context which will run commands and transfer files as the remote sudo user.
 func (this *SubContext) Sudo() *SubContext {
 	newCmdBuilder := sudoCommandBuilder{this.cmdBuilder}
 
@@ -100,6 +102,48 @@ func (sc *SubContext) WriteFile(file string, data []byte) error {
 	}
 
 	return nil
+}
+
+// Upload copies the contents of a local file to the remote machine.
+func (sc *SubContext) Upload(localFile, remoteFile string) error {
+	f, err := os.Open(localFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	wc, err := sc.Create(remoteFile)
+	if err != nil {
+		return err
+	}
+
+	if _, err = io.Copy(wc, f); err != nil {
+		wc.Close()
+		return err
+	}
+
+	return wc.Close()
+}
+
+// Download copies the contents of a remote file to a local file.
+func (sc *SubContext) Download(localFile, remoteFile string) error {
+	rc, err := sc.Open(remoteFile)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	f, err := sc.Create(localFile)
+	if err != nil {
+		return err
+	}
+
+	if _, err = io.Copy(f, rc); err != nil {
+		f.Close()
+		return err
+	}
+
+	return f.Close()
 }
 
 // InDir returns a new subcontext for the current directory
