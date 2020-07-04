@@ -1,4 +1,4 @@
-module github.com/lmika/fabric
+module github.com/lmika/flock
 
 go 1.14
 
