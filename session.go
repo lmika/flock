@@ -1,4 +1,4 @@
-package fabric
+package flock
 
 import (
 	"github.com/melbahja/goph"
@@ -10,7 +10,7 @@ type Session struct {
 	*SubContext
 }
 
-func NewSSH(user, addr string, auth SSHAuth) (*Session, error) {
+func NewSSH(addr, user string, auth SSHAuth) (*Session, error) {
 	gophAuth, err := auth.toGophAuth()
 	if err != nil {
 		return nil, err
