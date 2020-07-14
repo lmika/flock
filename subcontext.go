@@ -104,6 +104,24 @@ func (sc *SubContext) WriteFile(file string, data []byte) error {
 	return nil
 }
 
+// AppendToFile adds the contents to the end of a remote file.
+func (sc *SubContext) AppendToFile(file string, data []byte) error {
+	w, err := sc.fileDriver.openAppend(file)
+	if err != nil {
+		return err
+	}
+
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Upload copies the contents of a local file to the remote machine.
 func (sc *SubContext) Upload(localFile, remoteFile string) error {
 	f, err := os.Open(localFile)

@@ -11,6 +11,9 @@ type fileDriver interface {
 
 	// create opens a file for writing
 	create(file string) (io.WriteCloser, error)
+
+	// openAppend opens a file for appending
+	openAppend(file string) (io.WriteCloser, error)
 }
 
 // fileDriver that uses 'cat' to read/write files
@@ -36,6 +39,22 @@ func (cfd catFileDriver) open(file string) (io.ReadCloser, error) {
 func (cfd catFileDriver) create(file string) (io.WriteCloser, error) {
 	// TODO: properly escape this command!!!
 	cmd, err := cfd.cmdBuilder.build("sh", []string{"-c", "'cat > " + file + "'"})
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: capture output in stderr
+	runningCmd, err := cfd.driver.Start(context.Background(), cmd, startOpts{pipeStdin: true, ttyMode: ttyNever})
+	if err != nil {
+		return nil, err
+	}
+
+	return runningCmdWriterCloser{runningCmd, runningCmd.stdin}, nil
+}
+
+func (cfd catFileDriver) openAppend(file string) (io.WriteCloser, error) {
+	// TODO: properly escape this command!!!
+	cmd, err := cfd.cmdBuilder.build("sh", []string{"-c", "'cat >> " + file + "'"})
 	if err != nil {
 		return nil, err
 	}

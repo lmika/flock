@@ -72,6 +72,15 @@ func (this *MustContext) WriteFile(file string, data []byte) {
 	}
 }
 
+// AppendToFile adds the contents to the end of a remote file.  This will panic if there was a problem opening, writing to,
+// or closing the file.
+func (this *MustContext) AppendToFile(file string, data []byte) {
+	err := this.subContext.AppendToFile(file, data)
+	if err != nil {
+		this.Panic(err)
+	}
+}
+
 // Upload copies the contents of a local file to the remote machine.  This will panic if there was a problem
 // within the process.
 func (this *MustContext) Upload(localFile string, remoteFile string) {
