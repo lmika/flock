@@ -1,4 +1,4 @@
-package fabric
+package flock
 
 import (
 	"io"
