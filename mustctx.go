@@ -4,97 +4,101 @@ import (
 	"io"
 )
 
+// MustContext represents the execution environment, such as the current directory, user or machine.
+// It's a lot like context except that any failures will cause the MustContext to panic instead of
+// return an error.
 type MustContext struct {
-	subContext *SubContext
+	subContext *Context
 }
 
 type errMustContextFail struct {
 	cause error
 }
 
-// Panic will cause the current MustContext to panic and fail.  When running in MustDo() closure,
+// Panic will cause the current MustContext to panic and fail.  When running in Context.MustDo(),
 // the passed in error will be returned.
-func (this *MustContext) Panic(err error) {
+func (mustCtx *MustContext) Panic(err error) {
 	panic(errMustContextFail{err})
 }
 
-// RunEcho will run the command while printing stdout and stderr.
-func (this *MustContext) RunEcho(cmd string, args ...string) {
-	err := this.subContext.RunEcho(cmd, args...)
+// RunEcho runs the commands with no input and all output echoed to stdout.  The context will panic
+// if the command fails to execute successfully.
+func (mustCtx *MustContext) RunEcho(cmd string, args ...string) {
+	err := mustCtx.subContext.RunEcho(cmd, args...)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 }
 
-// Sudo returns a new sudo MustContext.
-func (this *MustContext) Sudo() *MustContext {
+// Sudo returns a new context which will run commands and transfer files as the sudo user.
+func (mustCtx *MustContext) Sudo() *MustContext {
 	return &MustContext{
-		subContext: this.subContext.Sudo(),
+		subContext: mustCtx.subContext.Sudo(),
 	}
 }
 
-// Open opens a remote file for reading.  This will panic if there is a problem opening the file.  Any errors
-// reading or closing the file will not result in a panic.
-func (this *MustContext) Open(file string) io.ReadCloser {
-	rc, err := this.subContext.Open(file)
+// Open opens a remote file for reading.  The context will panic if there is a problem opening the file.  Any errors
+// reading or closing the file will not result in a panic.  The caller must close the file once done.
+func (mustCtx *MustContext) Open(file string) io.ReadCloser {
+	rc, err := mustCtx.subContext.Open(file)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 	return rc
 }
 
-// Create opens a remote file for writing.  This will panic if there is a problem creating the remote file.
-// An errors writing or closing to the file will not result in a panic.
-func (this *MustContext) Create(file string) io.WriteCloser {
-	wc, err := this.subContext.Create(file)
+// Create opens a remote file for writing.  The context will panic if there is a problem creating the remote file.
+// An errors writing or closing to the file will not result in a panic.  The caller must close the file once done.
+func (mustCtx *MustContext) Create(file string) io.WriteCloser {
+	wc, err := mustCtx.subContext.Create(file)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 	return wc
 }
 
-// ReadFile reads the contents of a remote file.  This will panic if there was a problem opening, reading or
+// ReadFile reads the contents of a remote file.  The context will panic if there was a problem opening, reading or
 // closing the file.
-func (this *MustContext) ReadFile(file string) []byte {
-	bts, err := this.subContext.ReadFile(file)
+func (mustCtx *MustContext) ReadFile(file string) []byte {
+	bts, err := mustCtx.subContext.ReadFile(file)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 	return bts
 }
 
-// WriteFile writes the contents of a remote file.  This will panic if there was a problem opening, writing to,
+// WriteFile writes the contents of a remote file.  The context will panic if there was a problem opening, writing to,
 // or closing the file.
-func (this *MustContext) WriteFile(file string, data []byte) {
-	err := this.subContext.WriteFile(file, data)
+func (mustCtx *MustContext) WriteFile(file string, data []byte) {
+	err := mustCtx.subContext.WriteFile(file, data)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 }
 
-// AppendToFile adds the contents to the end of a remote file.  This will panic if there was a problem opening, writing to,
+// AppendToFile adds the contents to the end of a remote file.  The context will panic if there was a problem opening, writing to,
 // or closing the file.
-func (this *MustContext) AppendToFile(file string, data []byte) {
-	err := this.subContext.AppendToFile(file, data)
+func (mustCtx *MustContext) AppendToFile(file string, data []byte) {
+	err := mustCtx.subContext.AppendToFile(file, data)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 }
 
-// Upload copies the contents of a local file to the remote machine.  This will panic if there was a problem
+// Upload copies the contents of a local file to the remote machine.  The context will panic if there was a problem
 // within the process.
-func (this *MustContext) Upload(localFile string, remoteFile string) {
-	err := this.subContext.Upload(localFile, remoteFile)
+func (mustCtx *MustContext) Upload(remoteFile, localFile string) {
+	err := mustCtx.subContext.Upload(remoteFile, localFile)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 }
 
-// Download copies the contents of a remote file to a local file.  This will panic if there was a problem
+// Download copies the contents of a remote file to a local file.  The context will panic if there was a problem
 // within the process.
-func (this *MustContext) Download(remoteFile string, localFile string) {
-	err := this.subContext.Download(remoteFile, localFile)
+func (mustCtx *MustContext) Download(localFile, remoteFile string) {
+	err := mustCtx.subContext.Download(localFile, remoteFile)
 	if err != nil {
-		this.Panic(err)
+		mustCtx.Panic(err)
 	}
 }
