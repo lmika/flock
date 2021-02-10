@@ -35,7 +35,8 @@ func (this *sshDriver) Start(ctx context.Context, cmd *command, opts startOpts) 
 		ctx: ctx,
 		command: cmd,
 		tracer: this.tracer,
-		session: session,
+		waitFn: session.Wait,
+		closeFn: session.Close,
 	}
 
 	if opts.pipeStdin {

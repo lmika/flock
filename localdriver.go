@@ -25,6 +25,7 @@ func (ld localDriver) Start(ctx context.Context, cmd *command, opts startOpts) (
 		ctx: ctx,
 		command: cmd,
 		tracer: ld.tracer,
+		waitFn: osCmd.Wait,
 	}
 
 	if opts.pipeStdin {
@@ -43,6 +44,7 @@ func (ld localDriver) Start(ctx context.Context, cmd *command, opts startOpts) (
 		}
 	}
 
+	ld.tracer.startCmd(cmd)
 	if err = osCmd.Start(); err != nil {
 		return nil, err
 	}

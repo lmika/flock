@@ -2,7 +2,6 @@ package flock
 
 import (
 	"context"
-	"golang.org/x/crypto/ssh"
 	"io"
 )
 
@@ -27,7 +26,9 @@ type runningCommand struct {
 	ctx     context.Context
 	command *command
 	tracer  driverTracer
-	session *ssh.Session
+	//session *ssh.Session
+	waitFn	func() error
+	closeFn func() error
 
 	stdin  io.WriteCloser
 	stdout io.Reader
@@ -36,12 +37,14 @@ type runningCommand struct {
 
 func (rc *runningCommand) Wait() error {
 	doneChan := make(chan error)
-	go func() { doneChan <- rc.session.Wait() }()
+	go func() { doneChan <- rc.waitFn() }()
 
 	for {
 		select {
 		case err := <-doneChan:
-			rc.session.Close()
+			if closeFn := rc.closeFn; closeFn != nil {
+				closeFn()
+			}
 			rc.tracer.endCommand(rc.command, err, false)
 			return err
 		case <-rc.ctx.Done():
