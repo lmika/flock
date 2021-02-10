@@ -10,6 +10,23 @@ type Session struct {
 	*SubContext
 }
 
+func LocalSession() *Session {
+	return &Session{
+		&SubContext{
+			driver:     localDriver{
+				tracer: &noisyLogDriverTracer{
+					logger: log.New(os.Stderr, "", log.Ldate | log.Ltime),
+					prefix: "local",
+				},
+			},
+			cmdBuilder: plainCommandBuilder{},
+
+			// TODO: the default session should use the SSH connection sessions here to save having to use 'cat'
+			fileDriver: localFileDriver{},
+		},
+	}
+}
+
 func NewSSH(addr, user string, auth SSHAuth) (*Session, error) {
 	gophAuth, err := auth.toGophAuth()
 	if err != nil {

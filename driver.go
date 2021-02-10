@@ -12,7 +12,7 @@ type driver interface {
 	Start(ctx context.Context, cmd *command, opts startOpts) (*runningCommand, error)
 
 	// Run a dokku command expecting no output
-	Run(ctx context.Context, cmd *command) ([]byte, error)
+	//Run(ctx context.Context, cmd *command) ([]byte, error)
 
 	// Start starts a dokku command which will stream the output.  Onc
 	RunEcho(ctx context.Context, cmd *command) error
